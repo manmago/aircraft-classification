@@ -1,0 +1,32 @@
+# ─── Python ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# ─── Virtual environment (NEVER commit this) ──────────────
+.venv/
+venv/
+env/
+
+# ─── ML data & models (too big / regenerable for git) ─────
+data/
+models/
+*.pt
+*.pth
+*.h5
+*.onnx
+*.ckpt
+
+# ─── Notebooks scratch output ─────────────────────────────
+*.log
+
+# ─── IDE / OS ─────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ─── Secrets ──────────────────────────────────────────────
+.env
+*.key
