@@ -6,7 +6,8 @@ pillow            # image loading
 scikit-learn      # metrics, train/test split, baselines
 jupyter           # notebooks for exploration
 
-# Deep learning stack — we'll add these in Phase 2/3 once we confirm
-# your setup works. (torch installs differently; see README.)
+# Deep learning stack — installed SEPARATELY, not from this file, because the
+# NVIDIA GPU (CUDA) build comes from PyTorch's own package index. See README
+# step 4 for the exact command.
 # torch
 # torchvision
