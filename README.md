@@ -1,18 +1,8 @@
-# ✈️ Airplanes-ML
+# Aircraft recognition
 
-Identify a commercial aircraft (Boeing / Airbus first) from a photo of the
-aircraft or one of its parts, using machine learning.
-
-## Project status
-🚧 Phase 0 — setup. See the roadmap below.
-
-## Roadmap
-- [ ] **0. Setup** — venv, structure, git, dependencies
-- [ ] **1. Data** — acquire & explore a labeled aircraft image dataset
-- [ ] **2. Baseline** — train a simple model end-to-end (any accuracy)
-- [ ] **3. Improve** — transfer learning with a pretrained CNN, tune & evaluate
-- [ ] **4. Inference** — upload a photo → predicted aircraft
-- [ ] **5. Polish** — simple app/UI + write-up
+As an aviation freak, I started memorizing and learning to differentiate aircraft models. 
+Since I am struggling sometimes, I decided to use the knowledge gained from my last uni module
+to build an image classifyer/recognition tool, which can tell what Boeing/Airbus model an image depicts. 
 
 ## Setup (Windows)
 
