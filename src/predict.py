@@ -38,16 +38,17 @@ def load_model(ckpt_path, device='cpu'):
 
 
 @torch.no_grad()
-def predict(model, classes, image, device='cpu'):
+def predict(model, classes, image, device='cpu', tf=None):
     """Predict the aircraft for a PIL image or an image path.
 
+    `tf` overrides the preprocessing transform (defaults to infer_tf).
     Returns a list of (class_name, probability) sorted from most to least likely.
     """
     if isinstance(image, (str, Path)):
         image = Image.open(image)
     image = image.convert('RGB')
 
-    x = infer_tf(image).unsqueeze(0).to(device)   # add batch dim -> [1, 3, 224, 224]
+    x = (tf or infer_tf)(image).unsqueeze(0).to(device)   # add batch dim
     logits = model(x)                             # raw scores
     probs = logits.softmax(dim=1)[0].cpu()        # -> probabilities summing to 1
 

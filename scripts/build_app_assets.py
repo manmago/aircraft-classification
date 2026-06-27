@@ -23,7 +23,8 @@ import matplotlib
 matplotlib.use("Agg")  # no display needed
 import matplotlib.pyplot as plt
 from sklearn.metrics import (accuracy_score, balanced_accuracy_score, f1_score,
-                             confusion_matrix, ConfusionMatrixDisplay)
+                             classification_report, confusion_matrix,
+                             ConfusionMatrixDisplay)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -63,11 +64,15 @@ metrics = {
 (ASSETS / "metrics.json").write_text(json.dumps(metrics, indent=2))
 print("metrics:", metrics)
 
+(ASSETS / "classification_report.txt").write_text(
+    str(classification_report(trues, preds, target_names=classes, digits=3)))
+print("saved classification_report.txt")
+
 disp = ConfusionMatrixDisplay(confusion_matrix(trues, preds), display_labels=classes)
 fig, ax = plt.subplots(figsize=(6, 6))
 disp.plot(ax=ax, cmap="Blues", xticks_rotation=45, colorbar=False)
 plt.tight_layout()
-fig.savefig(ASSETS / "confusion_matrix.png", dpi=120)
+fig.savefig(str(ASSETS / "confusion_matrix.png"), dpi=120)
 print("saved confusion_matrix.png")
 
 # --- copy a few sample images per class (local testing only; see licensing note) ---

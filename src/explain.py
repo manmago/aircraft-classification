@@ -14,7 +14,7 @@ from PIL import Image
 from src.predict import infer_tf
 
 
-def grad_cam(model, image, class_idx=None, device='cpu', target_layer=None):
+def grad_cam(model, image, class_idx=None, device='cpu', target_layer=None, tf=None):
     """Compute a Grad-CAM heatmap.
 
     Args:
@@ -30,7 +30,7 @@ def grad_cam(model, image, class_idx=None, device='cpu', target_layer=None):
 
     if isinstance(image, str):
         image = Image.open(image)
-    x = infer_tf(image.convert('RGB')).unsqueeze(0).to(device)
+    x = (tf or infer_tf)(image.convert('RGB')).unsqueeze(0).to(device)
 
     # Hooks capture the layer's activations (forward) and gradients (backward).
     store = {}

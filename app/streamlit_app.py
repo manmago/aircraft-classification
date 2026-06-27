@@ -4,7 +4,6 @@ Run locally:   streamlit run app/streamlit_app.py
 """
 import io
 import sys
-import json
 import base64
 import random
 from pathlib import Path
@@ -13,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 import streamlit as st
+from streamlit_paste_button import paste_image_button
 from torchvision import transforms
 
 # Make the project's src/ package importable when run from the repo root.
@@ -21,23 +21,27 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.predict import load_model, predict
 from src.explain import grad_cam
+from src.data import IMAGENET_MEAN, IMAGENET_STD
 
 MODEL_PATH = PROJECT_ROOT / "models" / "resnet18_aircraft5.pt"
 SAMPLES_DIR = PROJECT_ROOT / "app" / "samples"
 ASSETS = PROJECT_ROOT / "app" / "assets"
 HEADER_IMG = ASSETS / "terbe_rezso-aircraft-9927406.jpg"
-DISPLAY_TF = transforms.Compose([transforms.Resize(256), transforms.CenterCrop(224)])
 
-# Header banner shape + how far DOWN to bias the crop (0 = centered, 1 = bottom).
-BANNER_RATIO = 3.2
-BANNER_VERTICAL_BIAS = 0.5
+# App preprocessing: squash the WHOLE image to 224x224 (no crop), so the model
+# sees the full frame and Grad-CAM covers the entire original image.
+APP_TF = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
+])
 
 st.set_page_config(page_title="Aircraft Classifier", layout="wide",
                    initial_sidebar_state="collapsed")
 
 
 def inject_css():
-    """Baby-blue -> white gradient, full-bleed header, no sidebar, clean tabs."""
+    """Baby-blue -> white gradient, thin full-bleed header, no sidebar, clean tabs."""
     st.markdown(
         """
         <style>
@@ -51,9 +55,17 @@ def inject_css():
         [data-testid="stSidebarCollapsedControl"] { display: none; }
         .block-container { padding-top: 0.5rem; max-width: 1100px; }
 
-        /* Full-bleed header: spans the whole viewport width on every device. */
-        .full-bleed { width: 100vw; margin-left: calc(50% - 50vw); line-height: 0; }
-        .full-bleed img { width: 100%; height: auto; display: block; }
+        /* Full-bleed header that stays THIN on desktop. Tune the height clamp
+           (min, preferred, max) and object-position (vertical framing) below. */
+        .full-bleed { width: 92vw; margin-left: calc(50% - 46vw); line-height: 0; }
+        .full-bleed img {
+            width: 100%;
+            height: clamp(180px, 24vw, 340px);
+            object-fit: cover;
+            object-position: center 60%;   /* higher % = show lower part of photo */
+            border-radius: 14px;
+            display: block;
+        }
 
         [data-testid="stImage"] img { border-radius: 14px; }
 
@@ -71,26 +83,16 @@ def inject_css():
 
 def _img_to_b64(img):
     buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=90)
+    img.save(buf, format="JPEG", quality=88)
     return base64.b64encode(buf.getvalue()).decode()
 
 
 def header():
-    """Render a full-width banner (cropped to a wide strip) + title."""
+    """Render a full-width, thin banner + title. CSS handles the cropping/height."""
     if HEADER_IMG.exists():
         img = Image.open(HEADER_IMG).convert("RGB")
-        w, h = img.size
-        if w / h > BANNER_RATIO:                    # too wide -> trim sides
-            new_w = int(h * BANNER_RATIO)
-            left = (w - new_w) // 2
-            img = img.crop((left, 0, left + new_w, h))
-        else:                                       # too tall -> trim top/bottom
-            new_h = int(w / BANNER_RATIO)
-            max_top = h - new_h
-            # Bias the crop window downward so the aircraft sits more centrally.
-            top = int(max_top / 2 + BANNER_VERTICAL_BIAS * max_top / 2)
-            top = max(0, min(top, max_top))
-            img = img.crop((0, top, w, top + new_h))
+        if img.width > 1600:                       # downscale for a lighter payload
+            img = img.resize((1600, round(img.height * 1600 / img.width)))
         st.markdown(
             f'<div class="full-bleed"><img src="data:image/jpeg;base64,'
             f'{_img_to_b64(img)}"/></div>',
@@ -121,25 +123,32 @@ def list_samples():
     return out
 
 
+def cam_overlay(model, pil, class_idx, size):
+    """Grad-CAM heatmap for one class, resized to `size` (w, h) of the display image."""
+    cam, _ = grad_cam(model, pil, class_idx=class_idx, device="cpu", tf=APP_TF)
+    cam_img = Image.fromarray((cam * 255).astype("uint8")).resize(size, Image.BILINEAR)
+    return np.asarray(cam_img) / 255.0
+
+
 def show_prediction(model, classes, image, true_name=None):
     """Run prediction + Grad-CAM on a PIL image (or path) and render it."""
     pil = image if isinstance(image, Image.Image) else Image.open(image)
     pil = pil.convert("RGB")
 
-    ranked = predict(model, classes, pil, device="cpu")
+    ranked = predict(model, classes, pil, device="cpu", tf=APP_TF)
     pred_name, conf = ranked[0]
 
-    img_np = np.array(DISPLAY_TF(pil))
-    cam, _ = grad_cam(model, pil, class_idx=classes.index(pred_name), device="cpu")
+    base = np.asarray(pil)  # original image, original aspect ratio
+    cam_pred = cam_overlay(model, pil, classes.index(pred_name), pil.size)
 
     col1, col2 = st.columns(2)
     with col1:
-        st.image(img_np, caption=(f"True: {true_name}" if true_name else "Your image"),
+        st.image(pil, caption=(f"True: {true_name}" if true_name else "Your image"),
                  use_container_width=True)
     with col2:
         fig, ax = plt.subplots()
-        ax.imshow(img_np)
-        ax.imshow(cam, cmap="jet", alpha=0.45)
+        ax.imshow(base)
+        ax.imshow(cam_pred, cmap="jet", alpha=0.45)
         ax.axis("off")
         ax.set_title(f'Grad-CAM: why "{pred_name}"')
         st.pyplot(fig)
@@ -156,10 +165,26 @@ def show_prediction(model, classes, image, true_name=None):
     for name, p in ranked:
         st.progress(min(max(p, 0.0), 1.0), text=f"{name} — {p * 100:.1f}%")
 
+    # Grad-CAM for EVERY class — where the model looks to argue each one.
+    st.subheader("Where the model looks, per class")
+    gw = 300
+    grid = pil.resize((gw, max(1, round(pil.height * gw / pil.width))))
+    grid_np = np.asarray(grid)
+    fig2, axes = plt.subplots(1, len(classes), figsize=(2.6 * len(classes), 2.9))
+    for ax, cls in zip(np.atleast_1d(axes), classes):
+        ax.imshow(grid_np)
+        ax.imshow(cam_overlay(model, pil, classes.index(cls), grid.size),
+                  cmap="jet", alpha=0.45)
+        ax.axis("off")
+        ax.set_title(cls, fontsize=9)
+    fig2.tight_layout()
+    st.pyplot(fig2)
+
 
 def render_predict(model, classes):
     st.write("**Recognises:** " + " · ".join(classes))
-    mode = st.radio("Image source", ["Upload your own", "Random sample"],
+    mode = st.radio("Image source",
+                    ["Upload your own", "Paste from clipboard", "Random sample"],
                     horizontal=True)
 
     if mode == "Upload your own":
@@ -167,6 +192,12 @@ def render_predict(model, classes):
                               type=["jpg", "jpeg", "png"])
         if up is not None:
             show_prediction(model, classes, Image.open(up))
+
+    elif mode == "Paste from clipboard":
+        pasted = paste_image_button("Paste image from clipboard", errors="ignore")
+        if pasted.image_data is not None:
+            show_prediction(model, classes, pasted.image_data)
+
     else:
         samples = list_samples()
         if not samples:
@@ -196,21 +227,16 @@ def render_about():
 6. **Explain** — Grad-CAM heatmaps to see *where* the model looks.
 """
     )
-    st.subheader("Results — test set")
-    metrics_path = ASSETS / "metrics.json"
-    if metrics_path.exists():
-        m = json.loads(metrics_path.read_text())
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Accuracy", f"{m['accuracy'] * 100:.1f}%")
-        c2.metric("Balanced accuracy", f"{m['balanced_accuracy'] * 100:.1f}%")
-        c3.metric("Macro F1", f"{m['macro_f1'] * 100:.1f}%")
-    else:
-        st.info("Run `python scripts/build_app_assets.py` to generate the metrics.")
 
-    cm_path = ASSETS / "confusion_matrix.png"
-    if cm_path.exists():
-        st.subheader("Confusion matrix")
-        st.image(str(cm_path), width=520)
+    col_cm, col_report = st.columns([1, 1])
+    with col_cm:
+        cm_path = ASSETS / "confusion_matrix.png"
+        if cm_path.exists():
+            st.image(str(cm_path), use_container_width=True)
+    with col_report:
+        report_path = ASSETS / "classification_report.txt"
+        if report_path.exists():
+            st.code(report_path.read_text(), language="text")
 
 
 def main():

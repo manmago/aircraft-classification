@@ -8,6 +8,7 @@ jupyter           # notebooks for exploration
 
 # Web app
 streamlit
+streamlit-paste-button   # paste an image straight from the clipboard
 
 # Deep learning stack.
 # The line below makes a fresh install (e.g. Streamlit Cloud, which is CPU-only)
