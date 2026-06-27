@@ -63,6 +63,12 @@ class FilteredAircraft(Dataset):
         img, old_label = self.base[self.indices[i]]
         return img, self.old_to_new[old_label]
 
+    def path_and_label(self, i):
+        """Return (image_path, true_class_name) for sample i — handy for spot-checks."""
+        base_idx = self.indices[i]
+        true_name = self.classes[self.old_to_new[self.base._labels[base_idx]]]
+        return self.base._image_files[base_idx], true_name
+
 
 def _make_split(data_dir, split, tf):
     base = FGVCAircraft(root=str(data_dir), split=split,
