@@ -18,6 +18,15 @@ models/
 *.onnx
 *.ckpt
 
+# ─── EXCEPTION: commit the one deployed model so the online app can load it ─
+!models/
+!models/resnet18_aircraft5.pt
+
+# ─── App sample images: ignored because the FGVC copies are copyrighted. ───
+# For the public deploy, add your OWN / CC-licensed images and force-add them:
+#   git add -f app/samples
+app/samples/
+
 # ─── Notebooks scratch output ─────────────────────────────
 *.log
 

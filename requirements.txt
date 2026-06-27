@@ -6,8 +6,14 @@ pillow            # image loading
 scikit-learn      # metrics, train/test split, baselines
 jupyter           # notebooks for exploration
 
-# Deep learning stack — installed SEPARATELY, not from this file, because the
-# NVIDIA GPU (CUDA) build comes from PyTorch's own package index. See README
-# step 4 for the exact command.
-# torch
-# torchvision
+# Web app
+streamlit
+
+# Deep learning stack.
+# The line below makes a fresh install (e.g. Streamlit Cloud, which is CPU-only)
+# pull the CPU build. On your machine the GPU build is already installed, so pip
+# leaves it untouched. For a fresh LOCAL GPU setup, install the CUDA build per
+# README step 4 (it overrides this).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
